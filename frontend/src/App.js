@@ -10,7 +10,6 @@ const api = axios.create({
 function App() {
   const [products, setProducts] = useState([]);
   const [form, setForm] = useState({
-    id: "",
     name: "",
     description: "",
     price: "",
@@ -47,7 +46,7 @@ function App() {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const res = await api.get("/products/");
+      const res = await api.get("/products");
       setProducts(res.data);
       setError("");
     } catch (err) {
@@ -61,7 +60,7 @@ function App() {
     const run = async () => {
       setLoading(true);
       try {
-        const res = await api.get("/products/");
+        const res = await api.get("/products");
         setProducts(res.data);
         setError("");
       } catch (err) {
@@ -124,7 +123,7 @@ function App() {
 
   // Reset form
   const resetForm = () => {
-    setForm({ id: "", name: "", description: "", price: "", quantity: "" });
+    setForm({ name: "", description: "", price: "", quantity: "" });
     setEditId(null);
   };
 
@@ -138,15 +137,13 @@ function App() {
       if (editId) {
         await api.put(`/products/${editId}`, {
           ...form,
-          id: Number(form.id),
           price: Number(form.price),
           quantity: Number(form.quantity),
         });
         setMessage("Product updated successfully");
       } else {
-        await api.post("/products/", {
+        await api.post("/products", {
           ...form,
-          id: Number(form.id),
           price: Number(form.price),
           quantity: Number(form.quantity),
         });
@@ -163,7 +160,6 @@ function App() {
   // Edit product
   const handleEdit = (product) => {
     setForm({
-      id: product.id,
       name: product.name,
       description: product.description,
       price: product.price,
@@ -225,15 +221,6 @@ function App() {
           <div className="card form-card">
             <h2>{editId ? "Edit Product" : "Add Product"}</h2>
             <form onSubmit={handleSubmit} className="product-form">
-              <input
-                type="number"
-                name="id"
-                placeholder="ID"
-                value={form.id}
-                onChange={handleChange}
-                required
-                disabled={!!editId}
-              />
               <input
                 type="text"
                 name="name"

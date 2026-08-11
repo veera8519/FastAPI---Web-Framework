@@ -1,13 +1,26 @@
 
-from fastapi import FastAPI,HTTPException,status
+from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
 
-from database import Session
+from database import engine, get_db
 import database_models
-from models import Product
+from models import Product, ProductCreate, ProductUpdate
 
-app=FastAPI()
+app = FastAPI()
 
-from database import engine
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 database_models.Base.metadata.create_all(bind=engine)
@@ -17,52 +30,45 @@ database_models.Base.metadata.create_all(bind=engine)
 def greet():
     return ("welcome to code")
 
-products=[
-    Product(id=1,name="Phone",description="budget phone",price=99,quantity=2),
-    Product(id=2,name="laptop",description="budget laptop",price=100, quantity=3),
-    Product(id=3,name="car",description="budget car",price=99,quantity=4),
-    Product(id=4,name="Tablet",description="portable tablet for work and entertainment",price=249,quantity=8),
-    Product(id=5,name="Headphones",description="wireless noise-cancelling headphones",price=79,quantity=15),
-    Product(id=6,name="Keyboard",description="compact mechanical keyboard",price=59,quantity=12),
-    Product(id=7,name="Monitor",description="24-inch full HD monitor",price=179,quantity=6),
-    Product(id=8,name="Smartwatch",description="fitness smartwatch with heart-rate tracking",price=129,quantity=10),
-    Product(id=9,name="Camera",description="digital camera for everyday photography",price=399,quantity=5),
-    Product(id=10,name="Backpack",description="water-resistant laptop backpack",price=45,quantity=20)
-]
+@app.get("/products", response_model=list[Product])
+def get_all_products(db: Session = Depends(get_db)):
+    return db.query(database_models.Product).all()
 
 
-@app.get("/product")
-def get_all_products():
-    db=Session()
-    db.query()
-    return products
-
-@app.get("/product/{id}")
-def get_product_by_id(id: int):
-    for product in products:
-        if product.id == id:
-            return product
+@app.get("/products/{id}", response_model=Product)
+def get_product_by_id(id: int, db: Session = Depends(get_db)):
+    product = db.query(database_models.Product).filter(database_models.Product.id == id).first()
+    if product:
+        return product
 
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
 
-@app.post("/product")
-def add_product(product:Product):
-    products.append(product)
-    return product
+@app.post("/products", response_model=Product, status_code=status.HTTP_201_CREATED)
+def add_product(product: ProductCreate, db: Session = Depends(get_db)):
+    db_product = database_models.Product(**product.model_dump())
+    db.add(db_product)
+    db.commit()
+    db.refresh(db_product)
+    return db_product
 
-@app.put("/product")
-def update_product(id:int,product:Product):
-    for i in range(len(products)):
-        if products[i].id == id:
-            products[i] = product
-            return product
+@app.put("/products/{id}", response_model=Product)
+def update_product(id: int, product: ProductUpdate, db: Session = Depends(get_db)):
+    db_product = db.query(database_models.Product).filter(database_models.Product.id == id).first()
+    if db_product:
+        for field, value in product.model_dump().items():
+            setattr(db_product, field, value)
+        db.commit()
+        db.refresh(db_product)
+        return db_product
 
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
 
-@app.delete("/product")
-def delete_product(id: int):
-    for i, product in enumerate(products):
-        if product.id == id:
-            return products.pop(i)
+@app.delete("/products/{id}", response_model=Product)
+def delete_product(id: int, db: Session = Depends(get_db)):
+    db_product = db.query(database_models.Product).filter(database_models.Product.id == id).first()
+    if db_product:
+        db.delete(db_product)
+        db.commit()
+        return db_product
 
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
