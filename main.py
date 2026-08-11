@@ -22,7 +22,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 database_models.Base.metadata.create_all(bind=engine)
 
 
